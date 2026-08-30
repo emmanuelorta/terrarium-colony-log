@@ -4,15 +4,881 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Colony Log</title>
+<meta name="robots" content="noindex, nofollow">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300..700;1,300..700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<style>body{font-family:sans-serif;background:#131410;color:#ccc;padding:2rem}</style>
+<style>
+:root{
+  --ink:#0d1a13;
+  --plate:linear-gradient(162deg,#16291c,#101f16);
+  --plate-flat:#132219;
+  --brass:#e0aa4a;
+  --brass-light:#f0d089;
+  --cream:#dbd8d0;
+  --muted:#9aa79b;
+  --line:rgba(224,170,74,.28);
+  --line-strong:rgba(240,208,137,.9);
+  --danger:#d98a7a;
+  --ok:#7fbf8f;
+  --r:14px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--ink);
+  color:var(--cream);
+  font-family:"DM Sans",system-ui,-apple-system,sans-serif;
+  font-size:15px;
+  line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+}
+.mono{font-family:"DM Mono","SFMono-Regular",Consolas,monospace}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 20px 80px}
+
+/* ---------- masthead: the brass accession plate ---------- */
+.mast{
+  position:relative;
+  border:1px solid var(--line);
+  border-radius:var(--r);
+  background:var(--plate);
+  padding:26px 26px 22px;
+  overflow:hidden;
+  margin-bottom:26px;
+}
+.mast::before{
+  content:"";position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,transparent,var(--brass),var(--brass-light),var(--brass),transparent);
+}
+.mast h1{
+  font-size:clamp(1.5rem,3.4vw,2.1rem);
+  margin:0 0 4px;font-weight:600;letter-spacing:-.02em;
+}
+.mast .sub{color:var(--muted);margin:0;font-size:.92rem;max-width:62ch}
+.mast .rule{width:74px;height:1px;background:var(--brass);margin:14px 0 0;opacity:.7}
+
+.tally{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
+.tally div{
+  border:1px solid var(--line);border-radius:10px;padding:8px 14px;
+  background:rgba(224,170,74,.05);min-width:104px;
+}
+.tally b{display:block;font-size:1.35rem;font-weight:500;color:var(--brass-light);line-height:1.2}
+.tally span{font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+
+/* ---------- toolbar ---------- */
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:0 0 22px}
+.bar .grow{flex:1 1 200px}
+button,.btn{
+  font-family:inherit;font-size:.85rem;cursor:pointer;
+  background:transparent;color:var(--brass-light);
+  border:1px solid var(--line);border-radius:9px;
+  padding:9px 15px;transition:border-color .18s,background .18s,transform .18s;
+}
+button:hover,.btn:hover{border-color:var(--line-strong);background:rgba(224,170,74,.08)}
+button:focus-visible,.btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{
+  outline:2px solid var(--brass);outline-offset:2px;
+}
+button.primary{background:var(--brass);color:#14180f;border-color:var(--brass);font-weight:500}
+button.primary:hover{background:var(--brass-light)}
+button.ghost{color:var(--muted)}
+button.danger{color:var(--danger);border-color:rgba(217,138,122,.35)}
+
+input,select,textarea{
+  font-family:inherit;font-size:.9rem;
+  background:#0b150f;color:var(--cream);
+  border:1px solid var(--line);border-radius:9px;padding:9px 11px;width:100%;
+}
+input::placeholder,textarea::placeholder{color:#5f6c62}
+label{display:block;font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0 0 5px}
+.field{margin-bottom:13px}
+.row{display:grid;gap:13px}
+@media(min-width:640px){.row.c2{grid-template-columns:1fr 1fr}.row.c3{grid-template-columns:1fr 1fr 1fr}}
+
+/* ---------- colony plates ---------- */
+.plates{display:grid;gap:16px}
+@media(min-width:820px){.plates{grid-template-columns:1fr 1fr}}
+.plate{
+  position:relative;border:1px solid var(--line);border-radius:var(--r);
+  background:var(--plate);padding:18px 18px 16px;
+  box-shadow:0 10px 26px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.045);
+  transition:transform .2s,border-color .2s,box-shadow .2s;
+  cursor:pointer;
+}
+.plate:hover,.plate:focus-within{
+  transform:translateY(-4px);border-color:var(--line-strong);
+  box-shadow:0 16px 34px rgba(0,0,0,.42),0 0 0 1px rgba(224,170,74,.16);
+}
+.plate .pill{
+  display:inline-block;font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--brass);border:1px solid var(--line);border-radius:999px;
+  padding:3px 10px;margin-bottom:9px;
+}
+.plate h3{margin:0 0 2px;font-size:1.05rem;font-weight:500;font-style:italic}
+.plate .trade{color:var(--brass-light);font-style:normal;font-size:.95rem}
+.plate .meta{color:var(--muted);font-size:.8rem;margin:6px 0 12px}
+.plate .nums{display:flex;gap:18px;align-items:flex-end;border-top:1px solid rgba(224,170,74,.14);padding-top:12px}
+.plate .nums div{line-height:1.25}
+.plate .nums b{font-size:1.3rem;font-weight:500;color:var(--cream)}
+.plate .nums span{display:block;font-size:.65rem;letter-spacing:.11em;text-transform:uppercase;color:var(--muted)}
+.spark{margin-left:auto;width:96px;height:34px;opacity:.85}
+
+.flag{font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;padding:2px 8px;border-radius:999px;border:1px solid}
+.flag.due{color:var(--danger);border-color:rgba(217,138,122,.4);background:rgba(217,138,122,.08)}
+.flag.ok{color:var(--ok);border-color:rgba(127,191,143,.35);background:rgba(127,191,143,.07)}
+
+/* ---------- detail ---------- */
+.panel{border:1px solid var(--line);border-radius:var(--r);background:var(--plate);padding:22px;margin-bottom:18px}
+.panel h2{margin:0 0 3px;font-size:1.3rem;font-weight:500;font-style:italic}
+.panel .accno{font-family:"DM Mono",monospace;color:var(--brass);letter-spacing:.08em;font-size:.85rem}
+dl.facts{display:grid;grid-template-columns:auto 1fr;gap:7px 18px;margin:16px 0 0;font-size:.88rem}
+dl.facts dt{color:var(--muted);font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;padding-top:2px}
+dl.facts dd{margin:0}
+
+.entries{list-style:none;margin:14px 0 0;padding:0}
+.entries li{
+  border-left:2px solid var(--line);padding:9px 0 9px 15px;margin-bottom:2px;
+  display:flex;gap:12px;flex-wrap:wrap;align-items:baseline;
+}
+.entries li:hover{border-left-color:var(--brass)}
+.entries time{font-family:"DM Mono",monospace;font-size:.78rem;color:var(--muted);min-width:88px}
+.entries .kind{font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;color:var(--brass);min-width:82px}
+.entries .delta{font-family:"DM Mono",monospace;font-size:.82rem;color:var(--cream)}
+.entries .note{flex:1 1 220px;color:var(--cream);font-size:.88rem}
+.entries .rm{margin-left:auto;background:none;border:none;color:#55625a;padding:0 4px;font-size:1rem}
+.entries .rm:hover{color:var(--danger);background:none}
+
+.empty{border:1px dashed var(--line);border-radius:var(--r);padding:38px 24px;text-align:center;color:var(--muted)}
+.empty p{max-width:46ch;margin:0 auto 16px}
+
+dialog{
+  border:1px solid var(--line);border-radius:var(--r);background:var(--plate-flat);
+  color:var(--cream);padding:24px;max-width:640px;width:calc(100% - 32px);
+}
+dialog::backdrop{background:rgba(5,10,7,.76)}
+dialog h3{margin:0 0 16px;font-size:1.1rem;font-weight:500}
+.dlg-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+
+.toast{
+  position:fixed;left:50%;bottom:26px;transform:translateX(-50%);
+  background:var(--plate-flat);border:1px solid var(--line-strong);border-radius:10px;
+  padding:11px 18px;font-size:.88rem;color:var(--brass-light);
+  box-shadow:0 10px 30px rgba(0,0,0,.5);z-index:99;
+}
+.chartwrap{margin-top:18px;height:230px}
+.foot{color:#5f6c62;font-size:.75rem;text-align:center;margin-top:36px;line-height:1.7}
+.hidden{display:none !important}
+@media(prefers-reduced-motion:reduce){*{transition:none !important;animation:none !important}}
+</style>
 </head>
 <body>
-<h1>Colony Log v2.0</h1>
-<p>Deployment in progress. Full application file is being finalized and will be pushed as the next commit due to size — this placeholder confirms the pipeline (repo, Vercel, WordPress embed) works end-to-end first.</p>
+<div class="wrap">
+
+  <header class="mast">
+    <h1>Colony Log</h1>
+    <p class="sub">Breeding and husbandry record for Terrarium Station colonies. Every count is dated, every offspring traces to a founder group, and nothing is remembered that was not written down.</p>
+    <div class="rule"></div>
+    <div class="tally">
+      <div><b id="tColonies">0</b><span>Colonies</span></div>
+      <div><b id="tPop">0</b><span>Animals</span></div>
+      <div><b id="tOffspring">0</b><span>Bred here</span></div>
+      <div><b id="tDue">0</b><span>Feed due</span></div>
+    </div>
+  </header>
+
+  <div class="bar">
+    <div class="grow"><input id="search" type="search" placeholder="Filter by name, trade designator or colony number" aria-label="Filter colonies"></div>
+    <button class="primary" id="btnNew">Start a colony</button>
+    <button id="btnExport">Export backup</button>
+    <button id="btnImport">Import backup</button>
+    <button id="btnCsv">Export for SpeciesVault</button>
+    <input type="file" id="fileImport" accept="application/json" class="hidden">
+  </div>
+
+  <div id="listView">
+    <div class="plates" id="plates"></div>
+    <div class="empty hidden" id="emptyState">
+      <p>No colonies recorded yet. Start one to begin a census trail — the first entry is the founder count and the date you set the group up.</p>
+      <button class="primary" id="btnFirst">Start the first colony</button>
+    </div>
+  </div>
+
+  <div id="detailView" class="hidden"></div>
+
+  <p class="foot">
+    Records save to terrariumstation.com — signed-in keepers only, readable from any device.<br>
+    Colony numbers use the SpeciesVault taxon codes so records transfer straight into the registry.
+  </p>
+</div>
+
+<dialog id="dlgColony">
+  <h3 id="dlgColonyTitle">Start a colony</h3>
+  <form method="dialog" id="formColony">
+    <div class="row c2">
+      <div class="field">
+        <label for="fTaxon">Taxon group</label>
+        <select id="fTaxon" required></select>
+      </div>
+      <div class="field">
+        <label for="fStatus">Identification</label>
+        <select id="fStatus">
+          <option value="identified">Identified to species</option>
+          <option value="undescribed">Undescribed</option>
+          <option value="pending">ID pending review</option>
+          <option value="aff">aff. — close to</option>
+          <option value="cf">cf. — compare with</option>
+        </select>
+      </div>
+    </div>
+    <div class="row c2">
+      <div class="field">
+        <label for="fSci">Scientific name</label>
+        <input id="fSci" placeholder="Spirostreptid sp." required>
+      </div>
+      <div class="field">
+        <label for="fTrade">Trade designator</label>
+        <input id="fTrade" placeholder="Red Leg">
+      </div>
+    </div>
+    <div class="row c3">
+      <div class="field">
+        <label for="fOrigin">Origin</label>
+        <select id="fOrigin">
+          <option value="captive_bred">Captive bred</option>
+          <option value="wild_collected">Wild collected</option>
+          <option value="unknown">Unknown</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="fFounders">Founder count</label>
+        <input id="fFounders" type="number" min="0" step="1" value="0" required>
+      </div>
+      <div class="field">
+        <label for="fStarted">Date established</label>
+        <input id="fStarted" type="date" required>
+      </div>
+    </div>
+    <div class="row c3">
+      <div class="field">
+        <label for="fEnclosure">Enclosure</label>
+        <input id="fEnclosure" placeholder="32qt tub, rack 2">
+      </div>
+      <div class="field">
+        <label for="fSubstrate">Substrate</label>
+        <input id="fSubstrate" placeholder="Flake soil / leaf litter">
+      </div>
+      <div class="field">
+        <label for="fInterval">Feed every (days)</label>
+        <input id="fInterval" type="number" min="0" step="1" value="7">
+      </div>
+    </div>
+    <div class="field">
+      <label for="fNotes">Husbandry notes</label>
+      <textarea id="fNotes" rows="2" placeholder="Target 24°C, 80% RH. Mist two corners."></textarea>
+    </div>
+    <div class="dlg-actions">
+      <button type="button" class="ghost" data-close>Cancel</button>
+      <button type="submit" class="primary" id="btnSaveColony">Save colony</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlgEntry">
+  <h3>Add a log entry</h3>
+  <form method="dialog" id="formEntry">
+    <div class="row c3">
+      <div class="field">
+        <label for="eDate">Date</label>
+        <input id="eDate" type="date" required>
+      </div>
+      <div class="field">
+        <label for="eKind">Entry</label>
+        <select id="eKind">
+          <option value="census">Census count</option>
+          <option value="offspring">Offspring produced</option>
+          <option value="death">Loss</option>
+          <option value="removed">Removed / sold</option>
+          <option value="added">Animals added</option>
+          <option value="fed">Fed</option>
+          <option value="substrate">Substrate changed</option>
+          <option value="pairing">Pairing observed</option>
+          <option value="molt">Molt / shed</option>
+          <option value="note">Observation</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="eCount" id="eCountLabel">Count</label>
+        <input id="eCount" type="number" step="1" value="0">
+      </div>
+    </div>
+    <div class="field">
+      <label for="eNote">Note</label>
+      <textarea id="eNote" rows="2" placeholder="What you saw, in the words you would use to a keeper."></textarea>
+    </div>
+    <div class="dlg-actions">
+      <button type="button" class="ghost" data-close>Cancel</button>
+      <button type="submit" class="primary">Add entry</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+(function(){
+"use strict";
+
+/* SpeciesVault taxon codes — kept identical so colony numbers line up with the registry. */
+var TAXA = [
+  ["DIP","Millipedes"],["ISO","Isopods"],["CHI","Centipedes"],["THE","Tarantulas"],
+  ["ARA","Other arachnids"],["MAN","Mantids"],["COL","Beetles"],["BLA","Roaches"],
+  ["PHA","Stick insects"],["LSN","Land snails"],["FSN","Freshwater snails"],["GEK","Geckos"],
+  ["PHE","Day geckos"],["CRG","Crested geckos"],["SKI","Skinks"],["LIZ","Other lizards"],
+  ["AMP","Frogs & amphibians"],["SER","Snakes"],["TES","Turtles & tortoises"]
+];
+var TAXA_MAP = {}; TAXA.forEach(function(t){ TAXA_MAP[t[0]] = t[1]; });
+
+var KIND_LABEL = {
+  census:"Census", offspring:"Offspring", death:"Loss", removed:"Removed",
+  added:"Added", fed:"Fed", substrate:"Substrate", pairing:"Pairing",
+  molt:"Molt", note:"Note"
+};
+/* Which entry kinds move the population, and in which direction. */
+var DELTA_KIND = { offspring:1, added:1, death:-1, removed:-1 };
+
+var API = "/wp-json/wp/v2/colonies";
+var NONCE = "__WPNONCE__";
+var state = { colonies: [] };
+var current = null;
+var chart = null;
+
+/* ---------------- storage: WordPress REST ---------------- */
+function hdrs(json){
+  var h = { "X-WP-Nonce": NONCE };
+  if(json) h["Content-Type"] = "application/json";
+  return h;
+}
+function stripLocal(c){
+  var o = {}; Object.keys(c).forEach(function(k){ if(k !== "wpId") o[k] = c[k]; });
+  return o;
+}
+function load(done){
+  fetch(API + "?per_page=100&_fields=id,meta", { headers: hdrs(false), credentials: "same-origin" })
+    .then(function(r){ if(!r.ok) throw new Error(r.status); return r.json(); })
+    .then(function(rows){
+      state.colonies = rows.map(function(row){
+        try{
+          var c = JSON.parse((row.meta && row.meta.svc_data) || "");
+          if(!c || !c.id) return null;
+          c.wpId = row.id;
+          return c;
+        }catch(e){ return null; }
+      }).filter(Boolean);
+      done();
+    })
+    .catch(function(){
+      toast("Could not load records from the site. Check you are signed in, then reload.");
+      done();
+    });
+}
+/* Every mutation writes the whole colony record back as one post. */
+function persist(c){
+  var url = c.wpId ? API + "/" + c.wpId : API;
+  return fetch(url, {
+    method: "POST", headers: hdrs(true), credentials: "same-origin",
+    body: JSON.stringify({ status: "publish", title: c.no, meta: { svc_data: JSON.stringify(stripLocal(c)) } })
+  })
+  .then(function(r){ if(!r.ok) throw new Error(r.status); return r.json(); })
+  .then(function(p){ c.wpId = p.id; return c; })
+  .catch(function(){
+    toast("Save failed — the change is on screen but NOT stored. Retry, or export a backup now.");
+    return null;
+  });
+}
+function destroy(c){
+  if(!c.wpId) return Promise.resolve();
+  return fetch(API + "/" + c.wpId + "?force=true", {
+    method: "DELETE", headers: hdrs(false), credentials: "same-origin"
+  }).catch(function(){ toast("Delete did not reach the site. Reload and check."); });
+}
+
+/* ---------------- helpers ---------------- */
+function esc(s){
+  return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+  });
+}
+function uid(){ return "c" + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+function today(){ return new Date().toISOString().slice(0,10); }
+function fmtDate(d){
+  if(!d) return "—";
+  var p = d.split("-");
+  if(p.length !== 3) return d;
+  var m = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  return p[2] + " " + m[parseInt(p[1],10)-1] + " " + p[0];
+}
+function daysSince(d){
+  if(!d) return null;
+  var then = new Date(d + "T00:00:00");
+  if(isNaN(then)) return null;
+  return Math.floor((new Date(today()+"T00:00:00") - then) / 86400000);
+}
+function nextNumber(code){
+  var max = 0;
+  state.colonies.forEach(function(c){
+    var m = /^TS-([A-Z]{3})-C(\d+)$/.exec(c.no || "");
+    if(m && m[1] === code) max = Math.max(max, parseInt(m[2],10));
+  });
+  return "TS-" + code + "-C" + String(max + 1).padStart(3,"0");
+}
+
+/* Display name follows the registry rules: trade name in curly quotes,
+   aff/cf injected after the genus, pending flagged in words. */
+function displayName(c){
+  var sci = c.sci || "";
+  if(c.idStatus === "aff" || c.idStatus === "cf"){
+    var bits = sci.split(" ");
+    if(bits.length > 1) sci = bits[0] + " " + c.idStatus + ". " + bits.slice(1).join(" ");
+  }
+  var out = sci;
+  if(c.trade) out += " \u201C" + c.trade + "\u201D";
+  if(c.idStatus === "pending") out += " — ID pending review";
+  return out;
+}
+
+/* Population is derived from the entry trail, never typed directly.
+   A census entry is an authoritative reset; deltas accumulate after it. */
+function population(c){
+  var entries = (c.entries || []).slice().sort(byDate);
+  var pop = Number(c.founders) || 0;
+  for(var i=0;i<entries.length;i++){
+    var e = entries[i];
+    if(e.kind === "census"){ pop = Number(e.count) || 0; }
+    else if(DELTA_KIND[e.kind]){ pop += DELTA_KIND[e.kind] * Math.abs(Number(e.count) || 0); }
+  }
+  return pop;
+}
+function bredHere(c){
+  return (c.entries||[]).reduce(function(n,e){
+    return n + (e.kind === "offspring" ? Math.abs(Number(e.count)||0) : 0);
+  },0);
+}
+function lastFed(c){
+  var d = null;
+  (c.entries||[]).forEach(function(e){ if(e.kind === "fed" && (!d || e.date > d)) d = e.date; });
+  return d;
+}
+function feedDue(c){
+  var iv = Number(c.interval) || 0;
+  if(!iv) return false;
+  var d = lastFed(c);
+  var since = daysSince(d || c.started);
+  return since !== null && since >= iv;
+}
+function byDate(a,b){ return a.date === b.date ? (a.seq||0)-(b.seq||0) : (a.date < b.date ? -1 : 1); }
+
+/* Population over time, for the sparkline and the detail chart. */
+function series(c){
+  var entries = (c.entries||[]).slice().sort(byDate);
+  var pts = [{ d:c.started || today(), v:Number(c.founders)||0 }];
+  var pop = Number(c.founders)||0;
+  entries.forEach(function(e){
+    if(e.kind === "census"){ pop = Number(e.count)||0; }
+    else if(DELTA_KIND[e.kind]){ pop += DELTA_KIND[e.kind] * Math.abs(Number(e.count)||0); }
+    else return;
+    pts.push({ d:e.date, v:pop });
+  });
+  return pts;
+}
+
+function toast(msg){
+  var t = document.createElement("div");
+  t.className = "toast"; t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(function(){ t.remove(); }, 3200);
+}
+
+/* ---------------- list view ---------------- */
+function sparkline(pts){
+  if(pts.length < 2) return "";
+  var vals = pts.map(function(p){ return p.v; });
+  var min = Math.min.apply(null,vals), max = Math.max.apply(null,vals);
+  var span = (max - min) || 1;
+  var w = 96, h = 34, pad = 3;
+  var d = pts.map(function(p,i){
+    var x = pad + (i/(pts.length-1)) * (w - pad*2);
+    var y = h - pad - ((p.v - min)/span) * (h - pad*2);
+    return (i ? "L" : "M") + x.toFixed(1) + " " + y.toFixed(1);
+  }).join(" ");
+  return '<svg class="spark" viewBox="0 0 '+w+' '+h+'" aria-hidden="true">' +
+         '<path d="'+d+'" fill="none" stroke="#e0aa4a" stroke-width="1.5" ' +
+         'stroke-linejoin="round" stroke-linecap="round"/></svg>';
+}
+
+function renderList(){
+  var q = (document.getElementById("search").value || "").toLowerCase().trim();
+  var list = state.colonies.filter(function(c){
+    if(!q) return true;
+    return (c.no + " " + c.sci + " " + (c.trade||"")).toLowerCase().indexOf(q) > -1;
+  });
+
+  var host = document.getElementById("plates");
+  host.innerHTML = list.map(function(c){
+    var pop = population(c), due = feedDue(c), fed = lastFed(c);
+    var sinceFed = daysSince(fed);
+    return '<article class="plate" tabindex="0" role="button" data-id="'+c.id+'" ' +
+      'aria-label="Open colony '+esc(c.no)+'">' +
+      '<span class="pill mono">'+esc(c.no)+'</span>' +
+      (due ? ' <span class="flag due">Feed due</span>' : '') +
+      '<h3>'+esc(displayName(c))+'</h3>' +
+      '<p class="meta">'+esc(TAXA_MAP[c.code]||c.code)+' · established '+esc(fmtDate(c.started))+
+        (fed ? ' · fed '+(sinceFed===0?'today':sinceFed+'d ago') : ' · never logged as fed')+'</p>' +
+      '<div class="nums">' +
+        '<div><b>'+pop+'</b><span>Animals</span></div>' +
+        '<div><b>'+bredHere(c)+'</b><span>Bred here</span></div>' +
+        '<div><b>'+(c.entries||[]).length+'</b><span>Entries</span></div>' +
+        sparkline(series(c)) +
+      '</div></article>';
+  }).join("");
+
+  document.getElementById("emptyState").classList.toggle("hidden", state.colonies.length > 0);
+  document.getElementById("plates").classList.toggle("hidden", state.colonies.length === 0);
+
+  document.getElementById("tColonies").textContent = state.colonies.length;
+  document.getElementById("tPop").textContent = state.colonies.reduce(function(n,c){ return n + population(c); },0);
+  document.getElementById("tOffspring").textContent = state.colonies.reduce(function(n,c){ return n + bredHere(c); },0);
+  document.getElementById("tDue").textContent = state.colonies.filter(feedDue).length;
+}
+
+/* ---------------- detail view ---------------- */
+function renderDetail(id){
+  var c = state.colonies.filter(function(x){ return x.id === id; })[0];
+  if(!c) return showList();
+  current = c;
+
+  var entries = (c.entries||[]).slice().sort(byDate).reverse();
+  var facts = [
+    ["Taxon", TAXA_MAP[c.code] || c.code],
+    ["Identification", ({identified:"Identified to species",undescribed:"Undescribed",pending:"ID pending review",aff:"aff. — close to",cf:"cf. — compare with"})[c.idStatus] || c.idStatus],
+    ["Origin", ({captive_bred:"Captive bred",wild_collected:"Wild collected",unknown:"Unknown"})[c.origin] || c.origin],
+    ["Established", fmtDate(c.started)],
+    ["Founders", c.founders],
+    ["Enclosure", c.enclosure],
+    ["Substrate", c.substrate],
+    ["Feed interval", c.interval ? c.interval + " days" : ""],
+    ["Husbandry", c.notes]
+  ].filter(function(f){ return f[1] !== "" && f[1] != null; });
+
+  document.getElementById("detailView").innerHTML =
+    '<div class="bar"><button id="btnBack" class="ghost">← All colonies</button>' +
+      '<div class="grow"></div>' +
+      '<button id="btnAddEntry" class="primary">Add entry</button>' +
+      '<button id="btnPdf">Download report</button>' +
+      '<button id="btnEdit">Edit colony</button>' +
+      '<button id="btnDelete" class="danger">Delete</button></div>' +
+    '<div class="panel">' +
+      '<span class="accno">'+esc(c.no)+'</span>' +
+      '<h2>'+esc(displayName(c))+'</h2>' +
+      '<div class="nums" style="display:flex;gap:26px;margin-top:14px">' +
+        '<div><b style="font-size:1.6rem;color:var(--brass-light)">'+population(c)+'</b>' +
+          '<span style="display:block;font-size:.65rem;letter-spacing:.11em;text-transform:uppercase;color:var(--muted)">Animals now</span></div>' +
+        '<div><b style="font-size:1.6rem;color:var(--brass-light)">'+bredHere(c)+'</b>' +
+          '<span style="display:block;font-size:.65rem;letter-spacing:.11em;text-transform:uppercase;color:var(--muted)">Bred here</span></div>' +
+      '</div>' +
+      '<dl class="facts">' + facts.map(function(f){
+        return "<dt>"+esc(f[0])+"</dt><dd>"+esc(f[1])+"</dd>";
+      }).join("") + '</dl>' +
+      '<div class="chartwrap"><canvas id="popChart"></canvas></div>' +
+    '</div>' +
+    '<div class="panel">' +
+      '<h3 style="margin:0 0 2px;font-size:1rem;font-weight:500">Log</h3>' +
+      '<p style="color:var(--muted);font-size:.83rem;margin:0">Newest first. A census entry sets the count outright; everything else adjusts it.</p>' +
+      (entries.length ?
+        '<ul class="entries">' + entries.map(function(e){
+          var d = DELTA_KIND[e.kind]
+            ? (DELTA_KIND[e.kind] > 0 ? "+" : "−") + Math.abs(Number(e.count)||0)
+            : (e.kind === "census" ? "= " + (Number(e.count)||0) : "");
+          return '<li><time class="mono">'+esc(fmtDate(e.date))+'</time>' +
+            '<span class="kind">'+esc(KIND_LABEL[e.kind]||e.kind)+'</span>' +
+            '<span class="delta">'+esc(d)+'</span>' +
+            '<span class="note">'+esc(e.note||"")+'</span>' +
+            '<button class="rm" data-entry="'+esc(e.id)+'" aria-label="Remove entry">×</button></li>';
+        }).join("") + '</ul>'
+        : '<p style="color:var(--muted);margin-top:14px">Nothing logged yet. The first entry is usually a census or a feed.</p>') +
+    '</div>';
+
+  document.getElementById("listView").classList.add("hidden");
+  document.getElementById("detailView").classList.remove("hidden");
+  drawChart(c);
+
+  document.getElementById("btnBack").onclick = showList;
+  document.getElementById("btnAddEntry").onclick = openEntry;
+  document.getElementById("btnPdf").onclick = function(){ makePdf(c); };
+  document.getElementById("btnEdit").onclick = function(){ openColony(c); };
+  document.getElementById("btnDelete").onclick = function(){
+    if(!window.confirm("Delete "+c.no+" and its "+(c.entries||[]).length+" entries? This cannot be undone.")) return;
+    destroy(c);
+    state.colonies = state.colonies.filter(function(x){ return x.id !== c.id; });
+    showList(); toast("Colony deleted.");
+  };
+  Array.prototype.forEach.call(document.querySelectorAll("[data-entry]"), function(b){
+    b.onclick = function(){
+      c.entries = c.entries.filter(function(e){ return e.id !== b.getAttribute("data-entry"); });
+      persist(c); renderDetail(c.id);
+    };
+  });
+}
+
+function drawChart(c){
+  var el = document.getElementById("popChart");
+  if(!el || typeof Chart === "undefined") return;
+  if(chart){ chart.destroy(); chart = null; }
+  var pts = series(c);
+  chart = new Chart(el.getContext("2d"), {
+    type:"line",
+    data:{
+      labels: pts.map(function(p){ return fmtDate(p.d); }),
+      datasets:[{
+        label:"Animals",
+        data: pts.map(function(p){ return p.v; }),
+        borderColor:"#e0aa4a",
+        backgroundColor:"rgba(224,170,74,.12)",
+        pointBackgroundColor:"#f0d089",
+        pointRadius:3, borderWidth:2, tension:.25, fill:true
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:false } },
+      scales:{
+        x:{ ticks:{ color:"#9aa79b", font:{ size:10 } }, grid:{ color:"rgba(224,170,74,.08)" } },
+        y:{ beginAtZero:true, ticks:{ color:"#9aa79b", precision:0 }, grid:{ color:"rgba(224,170,74,.08)" } }
+      }
+    }
+  });
+}
+
+function showList(){
+  current = null;
+  if(chart){ chart.destroy(); chart = null; }
+  document.getElementById("detailView").classList.add("hidden");
+  document.getElementById("listView").classList.remove("hidden");
+  renderList();
+}
+
+/* ---------------- colony dialog ---------------- */
+var editing = null;
+function openColony(c){
+  editing = c || null;
+  document.getElementById("dlgColonyTitle").textContent = c ? "Edit colony" : "Start a colony";
+  document.getElementById("btnSaveColony").textContent = c ? "Save changes" : "Save colony";
+  document.getElementById("fTaxon").value     = c ? c.code : "DIP";
+  document.getElementById("fStatus").value    = c ? c.idStatus : "identified";
+  document.getElementById("fSci").value       = c ? c.sci : "";
+  document.getElementById("fTrade").value     = c ? (c.trade||"") : "";
+  document.getElementById("fOrigin").value    = c ? c.origin : "captive_bred";
+  document.getElementById("fFounders").value  = c ? c.founders : 0;
+  document.getElementById("fStarted").value   = c ? c.started : today();
+  document.getElementById("fEnclosure").value = c ? (c.enclosure||"") : "";
+  document.getElementById("fSubstrate").value = c ? (c.substrate||"") : "";
+  document.getElementById("fInterval").value  = c ? (c.interval||0) : 7;
+  document.getElementById("fNotes").value     = c ? (c.notes||"") : "";
+  document.getElementById("fTaxon").disabled  = !!c; /* code is baked into the colony number */
+  document.getElementById("dlgColony").showModal();
+}
+
+document.getElementById("formColony").addEventListener("submit", function(){
+  var code = document.getElementById("fTaxon").value;
+  var data = {
+    code: code,
+    idStatus:  document.getElementById("fStatus").value,
+    sci:       document.getElementById("fSci").value.trim(),
+    trade:     document.getElementById("fTrade").value.trim(),
+    origin:    document.getElementById("fOrigin").value,
+    founders:  Math.max(0, parseInt(document.getElementById("fFounders").value,10) || 0),
+    started:   document.getElementById("fStarted").value || today(),
+    enclosure: document.getElementById("fEnclosure").value.trim(),
+    substrate: document.getElementById("fSubstrate").value.trim(),
+    interval:  Math.max(0, parseInt(document.getElementById("fInterval").value,10) || 0),
+    notes:     document.getElementById("fNotes").value.trim()
+  };
+  if(editing){
+    Object.keys(data).forEach(function(k){ if(k !== "code") editing[k] = data[k]; });
+    persist(editing); renderDetail(editing.id); toast("Colony updated.");
+  }else{
+    data.id = uid();
+    data.no = nextNumber(code);
+    data.entries = [];
+    state.colonies.push(data);
+    persist(data); renderList(); toast("Colony " + data.no + " started.");
+  }
+  editing = null;
+});
+
+/* ---------------- entry dialog ---------------- */
+function openEntry(){
+  document.getElementById("eDate").value = today();
+  document.getElementById("eKind").value = "census";
+  document.getElementById("eCount").value = population(current);
+  document.getElementById("eNote").value = "";
+  syncCountField();
+  document.getElementById("dlgEntry").showModal();
+}
+function syncCountField(){
+  var k = document.getElementById("eKind").value;
+  var wrap = document.getElementById("eCount").parentNode;
+  var label = document.getElementById("eCountLabel");
+  if(k === "census"){ label.textContent = "Count now"; wrap.classList.remove("hidden"); }
+  else if(DELTA_KIND[k]){ label.textContent = "How many"; wrap.classList.remove("hidden"); }
+  else { wrap.classList.add("hidden"); }
+}
+document.getElementById("eKind").addEventListener("change", syncCountField);
+
+document.getElementById("formEntry").addEventListener("submit", function(){
+  if(!current) return;
+  var kind = document.getElementById("eKind").value;
+  current.entries = current.entries || [];
+  current.entries.push({
+    id: uid(),
+    date: document.getElementById("eDate").value || today(),
+    kind: kind,
+    count: (kind === "census" || DELTA_KIND[kind])
+      ? Math.abs(parseInt(document.getElementById("eCount").value,10) || 0) : 0,
+    note: document.getElementById("eNote").value.trim(),
+    seq: current.entries.length
+  });
+  persist(current); renderDetail(current.id);
+});
+
+/* ---------------- export / import ---------------- */
+function download(name, text, mime){
+  var blob = new Blob([text], { type: mime || "application/json" });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement("a");
+  a.href = url; a.download = name; a.click();
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+}
+
+document.getElementById("btnExport").onclick = function(){
+  download("colony-log-" + today() + ".json", JSON.stringify({ colonies: state.colonies.map(stripLocal) }, null, 2));
+  toast("Backup downloaded.");
+};
+document.getElementById("btnImport").onclick = function(){ document.getElementById("fileImport").click(); };
+document.getElementById("fileImport").onchange = function(ev){
+  var f = ev.target.files[0]; if(!f) return;
+  var r = new FileReader();
+  r.onload = function(){
+    try{
+      var p = JSON.parse(r.result);
+      if(!p || !Array.isArray(p.colonies)) throw new Error("shape");
+      var have = {}; state.colonies.forEach(function(c){ have[c.no] = true; });
+      var add = p.colonies.filter(function(c){ return c && c.no && !have[c.no]; });
+      if(!add.length){ toast("Every colony in that file is already here."); return; }
+      if(!window.confirm("Add " + add.length + " colonies from this file? Existing records are untouched.")) return;
+      var chain = Promise.resolve();
+      add.forEach(function(c){
+        var clean = stripLocal(c);
+        state.colonies.push(clean);
+        chain = chain.then(function(){ return persist(clean); });
+      });
+      chain.then(function(){ showList(); toast(add.length + " colonies restored."); });
+    }catch(e){ toast("That file is not a Colony Log backup."); }
+  };
+  r.readAsText(f);
+  ev.target.value = "";
+};
+
+/* CSV shaped for the SpeciesVault accession fields, so a colony can be
+   promoted into the registry without retyping. */
+document.getElementById("btnCsv").onclick = function(){
+  if(!state.colonies.length){ toast("No colonies to export yet."); return; }
+  var head = ["colony_no","sv_scientific_name","sv_trade_name","sv_id_status","sv_origin",
+              "sv_acquired","population","bred_here","taxon_group","enclosure","substrate"];
+  var rows = state.colonies.map(function(c){
+    return [c.no, c.sci, c.trade||"", c.idStatus, c.origin, c.started,
+            population(c), bredHere(c), TAXA_MAP[c.code]||c.code, c.enclosure||"", c.substrate||""];
+  });
+  var csv = [head].concat(rows).map(function(r){
+    return r.map(function(v){ return '"' + String(v).replace(/"/g,'""') + '"'; }).join(",");
+  }).join("\r\n");
+  download("colonies-for-speciesvault-" + today() + ".csv", csv, "text/csv");
+  toast("CSV downloaded.");
+};
+
+function makePdf(c){
+  var J = window.jspdf && window.jspdf.jsPDF;
+  if(!J){ toast("PDF library did not load. Check the connection and retry."); return; }
+  var doc = new J({ unit:"pt", format:"letter" });
+  var y = 56;
+  doc.setFont("courier","normal"); doc.setFontSize(10); doc.setTextColor(150,120,50);
+  doc.text(c.no, 56, y); y += 22;
+  doc.setFont("helvetica","bolditalic"); doc.setFontSize(17); doc.setTextColor(20,20,20);
+  doc.text(displayName(c), 56, y); y += 10;
+  doc.setDrawColor(200,165,90); doc.setLineWidth(1.4); doc.line(56, y, 130, y); y += 26;
+
+  doc.setFont("helvetica","normal"); doc.setFontSize(10.5); doc.setTextColor(60,60,60);
+  [["Taxon group", TAXA_MAP[c.code]||c.code],
+   ["Established", fmtDate(c.started)],
+   ["Founders", String(c.founders)],
+   ["Animals now", String(population(c))],
+   ["Bred here", String(bredHere(c))],
+   ["Origin", c.origin],
+   ["Enclosure", c.enclosure||"—"],
+   ["Substrate", c.substrate||"—"],
+   ["Husbandry", c.notes||"—"]
+  ].forEach(function(f){
+    doc.setTextColor(130,130,130); doc.text(f[0].toUpperCase(), 56, y);
+    doc.setTextColor(30,30,30);
+    doc.text(doc.splitTextToSize(String(f[1]), 330), 190, y);
+    y += Math.max(16, doc.splitTextToSize(String(f[1]), 330).length * 13);
+  });
+
+  y += 12;
+  doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.setTextColor(20,20,20);
+  doc.text("Log", 56, y); y += 16;
+  doc.setFont("helvetica","normal"); doc.setFontSize(9.5);
+  var entries = (c.entries||[]).slice().sort(byDate).reverse();
+  if(!entries.length){ doc.setTextColor(130,130,130); doc.text("No entries recorded.", 56, y); }
+  entries.forEach(function(e){
+    if(y > 720){ doc.addPage(); y = 56; }
+    var d = DELTA_KIND[e.kind] ? (DELTA_KIND[e.kind]>0?"+":"-") + Math.abs(e.count)
+          : (e.kind==="census" ? "= "+e.count : "");
+    doc.setTextColor(120,120,120); doc.text(fmtDate(e.date), 56, y);
+    doc.setTextColor(150,120,50); doc.text((KIND_LABEL[e.kind]||e.kind), 150, y);
+    doc.setTextColor(30,30,30); doc.text(d, 225, y);
+    var note = doc.splitTextToSize(e.note||"", 300);
+    doc.text(note, 265, y);
+    y += Math.max(15, note.length * 12);
+  });
+
+  doc.setFontSize(8); doc.setTextColor(150,150,150);
+  doc.text("Terrarium Station — Colony Log — generated " + fmtDate(today()), 56, 756);
+  doc.save(c.no + "-colony-report.pdf");
+}
+
+/* ---------------- wiring ---------------- */
+document.getElementById("fTaxon").innerHTML = TAXA.map(function(t){
+  return '<option value="'+t[0]+'">'+t[1]+" ("+t[0]+")</option>";
+}).join("");
+
+document.getElementById("btnNew").onclick   = function(){ openColony(null); };
+document.getElementById("btnFirst").onclick = function(){ openColony(null); };
+document.getElementById("search").oninput   = renderList;
+
+Array.prototype.forEach.call(document.querySelectorAll("[data-close]"), function(b){
+  b.onclick = function(){ b.closest("dialog").close(); };
+});
+
+document.getElementById("plates").addEventListener("click", function(ev){
+  var p = ev.target.closest(".plate"); if(p) renderDetail(p.getAttribute("data-id"));
+});
+document.getElementById("plates").addEventListener("keydown", function(ev){
+  if(ev.key !== "Enter" && ev.key !== " ") return;
+  var p = ev.target.closest(".plate");
+  if(p){ ev.preventDefault(); renderDetail(p.getAttribute("data-id")); }
+});
+
+load(function(){ renderList(); });
+})();
+</script>
 </body>
 </html>
