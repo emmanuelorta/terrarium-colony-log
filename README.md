@@ -1,19 +1,21 @@
-# Terrarium Station — Colony Log v2
+# Colony Log — Terrarium Station LLC
 
-Internal breeding/husbandry log. **Live (login-gated) at** `terrariumstation.com/colony-log/`.
+Private husbandry, growth and breeding records for the *Furcifer angeli* colony.
 
-## Architecture
-- `index.html` — the full single-file app (38 KB). Served by WordPress, not from this repo.
-- `snippet-A-cpt.php` — Code Snippets snippet 100: registers CPT `sv_colony` (+ meta `svc_data`, REST base `colonies`).
-- `snippet-B-page.php` — Code Snippets snippet 101: `parse_request` route for `/colony-log/`, serves the app from a gzip+base64 payload, injects `__WPNONCE__`, noindex.
+**The app is `worker.js`** — a Cloudflare Worker deployed as `colonylog`,
+served at
+`colony.terrariumstation.com`, storing records in the `terrarium-colony` KV namespace
+(binding `COLONY`). Storage is server-side. Every write is timestamped, deletes are
+tombstones rather than erasures, and JSON/CSV export is built in.
 
-## Storage
-Records live in **WordPress** (`wp_posts` via `/wp-json/wp/v2/colonies`), not localStorage and not this repo. Colony records are the upstream half of the SpeciesVault pedigree chain and must share a DB with accessions.
+`index.html` is the retired predecessor: a single-page localStorage build kept only for
+history. It is not deployed and must not be restored — one browser cache clear would
+have destroyed the only copy of every record.
 
-## Deploying a change
-Edit `index.html` → gzip+base64 → replace payload in snippet 101 (byte-verify length). This repo is the source of record only.
+Access requires the `COLONY_KEY` encrypted variable on the Worker. Nothing here is
+indexable: `robots.txt` disallows all and every response carries `noindex`.
 
-## Caveats
-- CPT is invisible in wp-admin (REST-only by design).
-- Deactivating snippet 100 hides rows (data persists in wp_posts).
-- Export JSON monthly from the app.
+## Deploy
+
+Paste `worker.js` into the Worker editor (or PUT it via the API with
+`main_module: index.js`), keep the `COLONY` KV binding and the `COLONY_KEY` secret.
